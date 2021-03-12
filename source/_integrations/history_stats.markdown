@@ -180,16 +180,63 @@ Here, last Monday is _today_ as a timestamp, minus 86400 times the current weekd
 
 {% endraw %}
 
-**Last 30 days**: ends today at 00:00, lasts 30 days. Easy one.
+**Last 30 days untill right now**: 
+
+The [recorder](https://www.home-assistant.io/integrations/recorder/) integration that records history of entities is purging the database by default, therefore no data further away than 10 days (depending on 'purge_keep_days') is available.
+
+To display the time a sensor a certain state during a longer period of time, a possibility is the use of a helper. Like in below example 
 
 {% raw %}
 
 ```yaml
+    end: "{{now()}}"
+sensor:
+  - platform: template
+    sensors:  
+      uren_in_afwezigstand_na_purge:
+        friendly_name: "Uren totaal in afwezigstand sinds begin"
+        unit_of_measurement: "h"
+        value_template: "{{(states.sensor.uren_in_afwezigstand_vandaag.state | float) + (states.input_number.waarde_voor_purging_database.state | float ) | round(1)}}"
+  - platform: history_stats
+    name: Uren in afwezigstand afgelopen 7 dagen
+    entity_id: sensor.relay_inverted
+    state: 'True'
+    type: time
+    end: '{{ now()}}'
+    duration:
+        days: 7
+  - platform: history_stats
+    name: Uren in afwezigstand vandaag
+    entity_id: sensor.relay_inverted
+    state: 'True'
+    type: time
+    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+    end: '{{ now()}}'
+  - platform: history_stats
+    name: Uren in afwezigstand gisteren
+    entity_id: sensor.relay_inverted
+    state: 'True'
+    type: time
     end: "{{ now().replace(hour=0, minute=0, second=0) }}"
     duration:
-      days: 30
-```
+        hours: 24   
+  - platform: history_stats
+    name: Uren_in_afwezigstand_totaal
+    entity_id: sensor.relay_inverted 
+    state: 'True'
+    type: time
+    start: 0
+    end: "{{now()}}"
+      
 
+input_number:
+  history_at_midnight:
+    name: History at midnight
+    initial: 0
+    min: 0
+    step: 0.001
+    mode: box
+```
 {% endraw %}
 
 **All your history** starts at timestamp = 0, and ends right now.
