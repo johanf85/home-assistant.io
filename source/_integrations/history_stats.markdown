@@ -180,16 +180,65 @@ Here, last Monday is _today_ as a timestamp, minus 86400 times the current weekd
 
 {% endraw %}
 
-**Last 30 days**: ends today at 00:00, lasts 30 days. Easy one.
+**Last 30 days untill right now**: 
+
+The [recorder](https://www.home-assistant.io/integrations/recorder/) integration that records history of entities is purging the database by default, therefore no data further away than 10 days (depending on 'purge_keep_days') is available.
+
+To display the time a sensor a certain state during a longer period of time, a possibility is the use of a helper, a template sensor and an automation. Like in below example 
 
 {% raw %}
 
 ```yaml
+    end: "{{now()}}"
+
+sensor:
+  #create a template sensor with the data from today added to the collected data from yesterday
+  - platform: template
+    sensors:  
+      hours :
+        friendly_name: "Hours in on position 30 days"
+        unit_of_measurement: "h"
+        value_template: "{{(states.sensor.hours_in_on_position_yesterday.state | float) + (states.input_number.history_at_midnight.state | float ) | round(1)}}"
+  - platform: history_stats
+    name: Hours in on position yesterday
+    entity_id: switch.relay
+    state: 'on'
+    type: time
     end: "{{ now().replace(hour=0, minute=0, second=0) }}"
     duration:
-      days: 30
-```
+        hours: 24 
+  - platform: history_stats
+    name: Hours in on position yesterday
+    entity_id: switch.relay
+    state: 'on'
+    type: time
+    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+    end: "{{now()}}"    
+      
+input_number:
+  history_at_midnight:
+    name: History at midnight
+    initial: 0
+    min: 0
+    step: 0.001
+    mode: box
+    
+automation:
+- alias: Add history of yesterday to input
+  description: ''
+  trigger:
+  - platform: time
+    at: '00:00:01'
+  condition: []
+  action:
+  - service: input_number.set_value
+    data:
+      value: '{{states.sensor.hours_in_on_position_30_days.state + states.sensor.hours_in_on_position_yesterday.state}}'
+    entity_id: input_number.history_at_midnight
+  mode: single
 
+
+```
 {% endraw %}
 
 **All your history** starts at timestamp = 0, and ends right now.
